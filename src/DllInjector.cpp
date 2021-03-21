@@ -6,8 +6,10 @@
 //#include <stdio.h>
 
 #define BAKKESMOD_DLL L"bakkesmod.dll"
+#define BAKKESMOD_KEY L"Software\\BakkesMod\\AppPath"
+#define BAKKESMOD_SUBKEY L"BakkesModPath"
 
-DWORD DllInjector::InjectDLL(DWORD processID, std::string path) {
+DWORD DllInjector::InjectDLL(DWORD processID, std::wstring path) {
     DWORD result = NOPE;
     HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, false, processID);
     if (hProcess) {
@@ -22,14 +24,14 @@ DWORD DllInjector::InjectDLL(DWORD processID, std::string path) {
     return result;
 }
 
-DWORD DllInjector::InjectDLL(HANDLE hProcess, std::string path) {
+DWORD DllInjector::InjectDLL(HANDLE hProcess, std::wstring path) {
     if (hProcess) {
-        LPVOID LoadLibAddr = (LPVOID) GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA");
-        LPVOID dereercomp = VirtualAllocEx(hProcess, NULL, path.size(), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        WriteProcessMemory(hProcess, dereercomp, path.c_str(), path.size(), NULL);
+        LPVOID LoadLibAddr = (LPVOID) GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryW");
+        LPVOID dereercomp = VirtualAllocEx(hProcess, NULL, path.size() * sizeof(wchar_t), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        WriteProcessMemory(hProcess, dereercomp, path.c_str(), path.size() * sizeof(wchar_t), NULL);
         HANDLE asdc = CreateRemoteThread(hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE) LoadLibAddr, dereercomp, 0, NULL);
         WaitForSingleObject(asdc, INFINITE);
-        VirtualFreeEx(hProcess, dereercomp, path.size(), MEM_RELEASE);
+        VirtualFreeEx(hProcess, dereercomp, path.size() * sizeof(wchar_t), MEM_RELEASE);
         CloseHandle(asdc);
         return OK;
     }
@@ -88,4 +90,21 @@ DWORD DllInjector::IsBakkesModDllInjected(HANDLE hProcess) {
         }
     }
     return NOPE;
+}
+
+std::wstring DllInjector::GetBakkesModPath() {
+    HKEY hKey;
+    WCHAR szBuffer[512];
+    DWORD dwBufferSize = sizeof(szBuffer);
+    LONG nError;
+
+    nError = RegOpenKeyExW(HKEY_CURRENT_USER, BAKKESMOD_KEY, 0, KEY_ALL_ACCESS, &hKey);
+    if (ERROR_SUCCESS == nError) {
+        nError = RegQueryValueExW(hKey, BAKKESMOD_SUBKEY, 0, NULL, (LPBYTE) szBuffer, &dwBufferSize);
+        RegCloseKey(hKey);
+        if (ERROR_SUCCESS == nError) {
+            return szBuffer;
+        }
+    }
+    return std::wstring();
 }
