@@ -26,13 +26,14 @@ DWORD DllInjector::InjectDLL(DWORD processID, std::wstring path) {
 
 DWORD DllInjector::InjectDLL(HANDLE hProcess, std::wstring path) {
     if (hProcess) {
+        size_t pathSize = (path.size() + 1) * sizeof(wchar_t);
         LPVOID LoadLibAddr = (LPVOID) GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryW");
-        LPVOID dereercomp = VirtualAllocEx(hProcess, NULL, path.size() * sizeof(wchar_t), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        WriteProcessMemory(hProcess, dereercomp, path.c_str(), path.size() * sizeof(wchar_t), NULL);
-        HANDLE asdc = CreateRemoteThread(hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE) LoadLibAddr, dereercomp, 0, NULL);
-        WaitForSingleObject(asdc, INFINITE);
-        VirtualFreeEx(hProcess, dereercomp, path.size() * sizeof(wchar_t), MEM_RELEASE);
-        CloseHandle(asdc);
+        LPVOID dereercomp = VirtualAllocEx(hProcess, NULL, pathSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        WriteProcessMemory(hProcess, dereercomp, path.c_str(), pathSize, NULL);
+        HANDLE remoteThread = CreateRemoteThread(hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE) LoadLibAddr, dereercomp, 0, NULL);
+        WaitForSingleObject(remoteThread, INFINITE);
+        VirtualFreeEx(hProcess, dereercomp, pathSize, MEM_RELEASE);
+        CloseHandle(remoteThread);
         return OK;
     }
     return NOPE;
