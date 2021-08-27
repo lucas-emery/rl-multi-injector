@@ -8,10 +8,11 @@
 #define BAKKESMOD_DLL L"bakkesmod.dll"
 #define BAKKESMOD_KEY L"Software\\BakkesMod\\AppPath"
 #define BAKKESMOD_SUBKEY L"BakkesModPath"
+#define PROCESS_HANDLE_FLAGS PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ | SYNCHRONIZE
 
 DWORD DllInjector::InjectDLL(DWORD processID, std::wstring path) {
     DWORD result = NOPE;
-    HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, false, processID);
+    HANDLE hProcess = OpenProcess(PROCESS_HANDLE_FLAGS, false, processID);
     if (hProcess) {
         if (IsBakkesModDllInjected(hProcess) == NOPE) {
             InjectDLL(hProcess, path);
@@ -52,7 +53,7 @@ std::vector<DWORD> DllInjector::GetProcessIDs(std::wstring processName) {
     do {
         if (_wcsicmp(processName.c_str(), processInfo.szExeFile) == 0) {
             BOOL iswow64 = FALSE;
-            auto hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processInfo.th32ProcessID);
+            auto hProcess = OpenProcess(PROCESS_HANDLE_FLAGS, false, processInfo.th32ProcessID);
             if (hProcess) {
                 if (IsWow64Process(hProcess, &iswow64) && !iswow64) {
                     processIDs.push_back(processInfo.th32ProcessID);
@@ -61,7 +62,7 @@ std::vector<DWORD> DllInjector::GetProcessIDs(std::wstring processName) {
                 }
                 CloseHandle(hProcess);
             } else {
-                std::cout << "INFO: Error on OpenProcess to check bitness" << std::endl;
+                std::cout << "INFO: Error on OpenProcess to check bitness. Error code " << GetLastError() << std::endl;
             }
         }
     } while (Process32Next(processesSnapshot, &processInfo));
